@@ -15,3 +15,6 @@ def send_telegram_message(text):
     response = requests.post(url, json=payload)
     print("REPONSE TELEGRAM :", response.text, flush=True)
     return response.json()
+
+if __name__ == "__main__":
+    send_telegram_message("🤖 *Test du bot pronos réussi !* Prêt pour @vipprono_225.")
