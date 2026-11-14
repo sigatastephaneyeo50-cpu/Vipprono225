@@ -13,5 +13,5 @@ def send_telegram_message(text):
         "parse_mode": "Markdown"
     }
     response = requests.post(url, json=payload)
-    print("REPONSE TELEGRAM :", response.text)
+    print("REPONSE TELEGRAM :", response.text)print, flush=True)
     return response.json()
