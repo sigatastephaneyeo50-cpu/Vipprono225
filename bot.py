@@ -1,3 +1,10 @@
+import os
+import requests
+
+# Récupération propre des secrets GitHub
+TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+CHANNEL_ID = os.environ.get("TELEGRAM_CHANNEL_ID")
+
 def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     payload = {
@@ -6,5 +13,5 @@ def send_telegram_message(text):
         "parse_mode": "Markdown"
     }
     response = requests.post(url, json=payload)
-    print("REPONSE TELEGRAM :", response.text)  # <--- Ajoute cette ligne pour voir l'erreur exacte
+    print("REPONSE TELEGRAM :", response.text)
     return response.json()
