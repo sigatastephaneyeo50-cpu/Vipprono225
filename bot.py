@@ -12,8 +12,10 @@ def send_telegram_message(text):
         "text": text,
         "parse_mode": "Markdown"
     }
+    print("ENVOI EN COURS vers chat_id:", CHANNEL_ID, flush=True)
     response = requests.post(url, json=payload)
-    print("REPONSE TELEGRAM :", response.text, flush=True)
+    print("STATUT HTTP :", response.status_code, flush=True)
+    print("REPONSE BRUTE :", response.text, flush=True)
     return response.json()
 
 if __name__ == "__main__":
