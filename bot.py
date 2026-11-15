@@ -1,6 +1,7 @@
 import os
 import sys
 import requests
+from datetime import datetime
 
 # Récupération des secrets configurés sur GitHub
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -20,15 +21,25 @@ def send_telegram_message(text):
     return response.json()
 
 def fetch_today_matches():
-    """Interroge l'API Football pour récupérer les matchs du jour en cours"""
+    """Interroge l'API Football pour récupérer précisément les matchs d'aujourd'hui"""
     url = "https://api.football-data.org/v4/matches"
     headers = {"X-Auth-Token": FOOTBALL_API_KEY} if FOOTBALL_API_KEY else {}
     
+    # On cible explicitement la date du jour (UTC) pour que l'API renvoie les matchs du jour
+    today_str = datetime.utcnow().strftime('%Y-%m-%d')
+    params = {
+        "dateFrom": today_str,
+        "dateTo": today_str
+    }
+    
     try:
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, params=params)
+        print(f"Statut API pour {today_str} : {response.status_code}")
         if response.status_code == 200:
             data = response.json()
-            return data.get("matches", [])
+            matches = data.get("matches", [])
+            print(f"Nombre de matchs trouvés : {len(matches)}")
+            return matches
     except Exception as e:
         print("Erreur lors de la récupération des matchs :", e)
     
@@ -44,11 +55,27 @@ def run_morning_predictions():
         if home and away:
             match_list.append((home, away))
             
-    if len(match_list) >= 5:
+    # Si on a au moins 4 matchs, on les prend. Sinon, on s'adapte au nombre dispo ou secours.
+    if len(match_list) >= 4:
         m1_home, m1_away = match_list[0]
         m2_home, m2_away = match_list[1]
         m3_home, m3_away = match_list[2]
-        m4_home, m4_away = match_list[4]
+        m4_home, m4_away = match_list[3]
+    elif len(match_list) == 3:
+        m1_home, m1_away = match_list[0]
+        m2_home, m2_away = match_list[1]
+        m3_home, m3_away = match_list[2]
+        m4_home, m4_away = match_list[2]
+    elif len(match_list) == 2:
+        m1_home, m1_away = match_list[0]
+        m2_home, m2_away = match_list[1]
+        m3_home, m3_away = match_list[0]
+        m4_home, m4_away = match_list[1]
+    elif len(match_list) == 1:
+        m1_home, m1_away = match_list[0]
+        m2_home, m2_away = match_list[0]
+        m3_home, m3_away = match_list[0]
+        m4_home, m4_away = match_list[0]
     else:
         m1_home, m1_away = "France", "Turquie"
         m2_home, m2_away = "Belgique", "Italie"
