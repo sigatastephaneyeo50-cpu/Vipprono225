@@ -46,7 +46,7 @@ def fetch_today_matches():
     return []
 
 def run_morning_predictions():
-    """Génère et envoie les pronostics du matin avec les cotes cibles et options de handicap"""
+    """Génère et envoie les pronostics du matin sans afficher de cotes chiffrées"""
     matches = fetch_today_matches()
     match_list = []
     for m in matches:
@@ -55,7 +55,6 @@ def run_morning_predictions():
         if home and away:
             match_list.append((home, away))
             
-    # Si on a au moins 4 matchs, on les prend. Sinon, on s'adapte au nombre dispo ou secours.
     if len(match_list) >= 4:
         m1_home, m1_away = match_list[0]
         m2_home, m2_away = match_list[1]
@@ -82,35 +81,35 @@ def run_morning_predictions():
         m3_home, m3_away = "Espagne", "Angleterre"
         m4_home, m4_away = "Croatie", "Tchéquie"
 
-    # Ticket Safe (Cote visée : entre 2.00 et 3.00) - Utilisation d'un handicap sécurisant (+1.0)
+    # Ticket Safe (Sans mention de cote)
     safe_msg = (
         "<b>🔥 VIP PRONOS 225</b>\n\n"
-        "<b>🛡️ TICKET SAFE (COTE : ~2.45)</b>\n\n"
+        "<b>🛡️ TICKET SAFE</b>\n\n"
         f"📌 <b>{m1_home} vs {m1_away}</b>\n"
         "• Option : Handicap (+1) pour l'équipe visiteuse\n"
         "💡 <i>Analyse : Sécurité maximale, l'outsider encaisse rarement de lourdes défaites à l'extérieur.</i>\n\n"
         f"📌 <b>{m2_home} vs {m2_away}</b>\n"
         "• Option : Plus de 1,5 buts dans le match\n"
-        "💡 <i>Analyse : Attaque prolifique des deux côtés, la cote sécurisée par excellence.</i>\n\n"
+        "💡 <i>Analyse : Attaque prolifique des deux côtés, l'option sécurisée par excellence.</i>\n\n"
         "<b>📌 BOOKMAKER : Paripesa</b>\n"
         "<b>🎁 CODE PROMO : POSSIBLE06</b>\n"
         "🔗 https://paripesa.bet/possible06\n\n"
         "⚠️ Jouez responsablement."
     )
 
-    # Ticket Fun (Cote visée : jusqu'à 10.00) - Utilisation d'un handicap audacieux (-1.5)
+    # Ticket Fun (Sans mention de cote)
     fun_msg = (
         "<b>🔥 VIP PRONOS 225</b>\n\n"
-        "<b>🚀 TICKET FUN (COTE : ~8.50)</b>\n\n"
+        "<b>🚀 TICKET FUN</b>\n\n"
         f"📌 <b>{m1_home} vs {m1_away}</b>\n"
-        f"• Option : Victoire {m1_away} (Cote audacieuse)\n"
-        "💡 <i>Analyse : Coup à tenter, belle value sur l'outsider en déplacement.</i>\n\n"
+        f"• Option : Victoire {m1_away}\n"
+        "💡 <i>Analyse : Coup à tenter, belle opportunité sur l'outsider en déplacement.</i>\n\n"
         f"📌 <b>{m3_home} vs {m3_away}</b>\n"
         "• Option : Les deux équipes marquent & Plus de 2,5 buts\n"
         "💡 <i>Analyse : Duel ouvert où les défenses sous pression devraient céder.</i>\n\n"
         f"📌 <b>{m4_home} vs {m4_away}</b>\n"
         f"• Option : Handicap (-1.5) pour {m4_home}\n"
-        "💡 <i>Analyse : Domination attendue, le favori doit s'imposer par au moins 2 buts d'écart pour valider la cote.</i>\n\n"
+        "💡 <i>Analyse : Domination attendue, le favori doit s'imposer par au moins 2 buts d'écart.</i>\n\n"
         "<b>📌 BOOKMAKER : Paripesa</b>\n"
         "<b>🎁 CODE PROMO : POSSIBLE06</b>\n"
         "🔗 https://paripesa.bet/possible06\n\n"
@@ -119,7 +118,7 @@ def run_morning_predictions():
 
     send_telegram_message(safe_msg)
     send_telegram_message(fun_msg)
-    print("Tickets Safe et Fun avec options de Handicap envoyés avec succès !")
+    print("Tickets Safe et Fun (sans cotes) envoyés avec succès !")
 
 def run_evening_results():
     """Vérifie les scores de la journée et envoie le bilan du soir"""
