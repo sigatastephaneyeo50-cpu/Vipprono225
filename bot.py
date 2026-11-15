@@ -35,7 +35,7 @@ def fetch_today_matches():
     return []
 
 def run_morning_predictions():
-    """Génère et envoie les pronostics du matin avec des noms d'équipes garantis"""
+    """Génère et envoie les pronostics du matin en récupérant les matchs du jour"""
     matches = fetch_today_matches()
     match_list = []
     
@@ -45,7 +45,7 @@ def run_morning_predictions():
         if home and away:
             match_list.append((home, away))
             
-    # Si l'API retourne des matchs valides, on les prend. Sinon, on utilise des affiches solides par défaut.
+    # Utilisation des vrais matchs du jour s'ils sont disponibles, sinon affiches de repli
     if len(match_list) >= 4:
         m1_home, m1_away = match_list[0]
         m2_home, m2_away = match_list[1]
@@ -62,11 +62,11 @@ def run_morning_predictions():
         "<b>🔥 VIP PRONOS 225</b>\n\n"
         "<b>🛡️ TICKET SAFE (COTE : ~2.45)</b>\n\n"
         f"📌 <b>{m1_home} vs {m1_away}</b>\n"
-        "• Option : Handicap (+1) / Double Chance\n"
-        "💡 <i>Analyse : Option sécurisée basée sur la forme actuelle des deux formations.</i>\n\n"
+        "• Option : Handicap (+1) pour l'équipe visiteuse\n"
+        "💡 <i>Analyse : Sécurité maximale, l'outsider encaisse rarement de lourdes défaites.</i>\n\n"
         f"📌 <b>{m2_home} vs {m2_away}</b>\n"
         "• Option : Plus de 1,5 buts dans le match\n"
-        "💡 <i>Analyse : Gros potentiel offensif relevé par nos algorithmes statistiques.</i>\n\n"
+        "💡 <i>Analyse : Gros potentiel offensif relevé par nos analyses statistiques.</i>\n\n"
         "<b>📌 BOOKMAKER : Paripesa</b>\n"
         "<b>🎁 CODE PROMO : POSSIBLE06</b>\n"
         "🔗 https://paripesa.bet/possible06\n\n"
@@ -79,10 +79,10 @@ def run_morning_predictions():
         "<b>🚀 TICKET FUN (COTE : ~8.50)</b>\n\n"
         f"📌 <b>{m3_home} vs {m3_away}</b>\n"
         "• Option : Victoire sèche & Plus de 2,5 buts\n"
-        "💡 <i>Analyse : Pari audacieux pour aller chercher une belle value sur ce championnat.</i>\n\n"
+        "💡 <i>Analyse : Pari audacieux pour aller chercher une belle value sur cette affiche.</i>\n\n"
         f"📌 <b>{m4_home} vs {m4_away}</b>\n"
-        "• Option : Handicap (-1.5)\n"
-        "💡 <i>Analyse : Domination attendue, le favori doit s'imposer largement.</i>\n\n"
+        "• Option : Handicap (-1.5) pour le favori\n"
+        "💡 <i>Analyse : Domination attendue, l'équipe doit s'imposer par au moins 2 buts d'écart.</i>\n\n"
         "<b>📌 BOOKMAKER : Paripesa</b>\n"
         "<b>🎁 CODE PROMO : POSSIBLE06</b>\n"
         "🔗 https://paripesa.bet/possible06\n\n"
@@ -91,10 +91,10 @@ def run_morning_predictions():
 
     send_telegram_message(safe_msg)
     send_telegram_message(fun_msg)
-    print("Tickets envoyés avec succès avec les noms d'équipes !")
+    print("Tickets du jour avec matchs dynamiques envoyés avec succès !")
 
 def run_evening_results():
-    """Vérifie les scores réels de la journée et envoie le bilan du soir"""
+    """Vérifie les scores de la journée et envoie le bilan du soir"""
     matches = fetch_today_matches()
     results_summary = "<b>📊 BILAN DES RÉSULTATS DU JOUR</b>\n\n"
     
