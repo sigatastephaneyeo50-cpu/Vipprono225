@@ -1,0 +1,29 @@
+name: Bot Telegram Pronos Auto
+
+on:
+  workflow_dispatch: # Permet de lancer le bot manuellement depuis GitHub quand tu veux
+  schedule:
+    - cron: '0 10 * * *' # S'exécute automatiquement tous les jours à 10h00 UTC
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Configuration de Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Installation des dépendances
+        run: |
+          pip install requests
+
+      - name: Lancement du script
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          FOOTBALL_API_KEY: ${{ secrets.FOOTBALL_API_KEY }}
+        run: python bot.py
