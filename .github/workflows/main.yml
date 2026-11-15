@@ -1,9 +1,10 @@
-name: Bot Telegram Pronos Auto
+name: Bot Telegram Pronos & Résultats Auto
 
 on:
-  workflow_dispatch: # Permet de lancer le bot manuellement depuis GitHub quand tu veux
+  workflow_dispatch: # Permet de lancer manuellement
   schedule:
-    - cron: '0 10 * * *' # S'exécute automatiquement tous les jours à 10h00 UTC
+    - cron: '0 10 * * *' # S'exécute tous les jours à 10h00 UTC (Pronos du matin)
+    - cron: '0 23 * * *' # S'exécute tous les jours à 23h00 UTC (Bilan du soir)
 
 jobs:
   run-bot:
@@ -21,9 +22,20 @@ jobs:
         run: |
           pip install requests
 
-      - name: Lancement du script
+      - name: Déterminer le moment de la journée et lancer
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
           FOOTBALL_API_KEY: ${{ secrets.FOOTBALL_API_KEY }}
-        run: python bot.py
+        run: |
+          # Vérifie l'heure actuelle UTC ou l'événement pour savoir s'il faut lancer le matin ou le soir
+          CURRENT_HOUR=$(date -u +%H)
+          echo "Heure UTC actuelle : $CURRENT_HOUR"
+          
+          if [ "$CURRENT_HOUR" -ge 22 ] || [ "$CURRENT_HOUR" -lt 5 ]; then
+            echo "Lancement du bilan du soir..."
+            python bot.py evening
+          else
+            echo "Lancement des pronostics du matin..."
+            python bot.py morning
+          fi
