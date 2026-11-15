@@ -1,6 +1,5 @@
 import os
 import requests
-from datetime import datetime
 
 # Récupération des secrets configurés sur GitHub
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -20,13 +19,14 @@ def send_telegram_message(text):
     return response.json()
 
 def fetch_today_matches():
-    """Interroge l'API Football pour récupérer les matchs du jour"""
-    today = datetime.utcnow().strftime('%Y-%m-%d')
-    url = f"https://api.football-data.org/v4/matches?dateFrom={today}&dateTo={today}"
+    """Interroge l'API Football pour récupérer les matchs du jour en cours"""
+    # Si on appelle l'URL de base /matches/ sans filtre, l'API renvoie par défaut les matchs du jour UTC
+    url = "https://api.football-data.org/v4/matches"
     headers = {"X-Auth-Token": FOOTBALL_API_KEY} if FOOTBALL_API_KEY else {}
     
     try:
         response = requests.get(url, headers=headers)
+        print("API Status Code:", response.status_code)
         if response.status_code == 200:
             data = response.json()
             matches = data.get("matches", [])
@@ -46,24 +46,34 @@ if __name__ == "__main__":
     if not TOKEN or not CHANNEL_ID:
         print("Erreur : Les secrets Telegram ne sont pas configurés.")
     else:
-        # Récupération des vrais matchs du jour
+        # Récupération des vrais matchs du jour via l'API
         real_matches = fetch_today_matches()
+        print(f"Nombre de matchs récupérés via l'API : {len(real_matches)}")
         
-        # Si on a assez de matchs via l'API, on les utilise, sinon liste de secours
+        # Si l'API renvoie des matchs, on les utilise dynamiquement
         if len(real_matches) >= 5:
             m1_home, m1_away = real_matches[0]
             m2_home, m2_away = real_matches[1]
             m3_home, m3_away = real_matches[2]
             m4_home, m4_away = real_matches[3]
             m5_home, m5_away = real_matches[4]
+        elif len(real_matches) > 0:
+            # S'il y a moins de 5 matchs, on complète avec les premiers de la liste en boucle
+            matches_pool = real_matches * 5
+            m1_home, m1_away = matches_pool[0]
+            m2_home, m2_away = matches_pool[1]
+            m3_home, m3_away = matches_pool[2]
+            m4_home, m4_away = matches_pool[3]
+            m5_home, m5_away = matches_pool[4]
         else:
-            m1_home, m1_away = "Türkiye", "Belgium"
-            m2_home, m2_away = "Italy", "France"
-            m3_home, m3_away = "England", "Croatia"
-            m4_home, m4_away = "Czech Republic", "Spain"
-            m5_home, m5_away = "Albania", "Finland"
+            # Matchs de secours actualisés si l'API est vide (ex: trêve ou pas de match couvert)
+            m1_home, m1_away = "France", "Turquie"
+            m2_home, m2_away = "Belgique", "Italie"
+            m3_home, m3_away = "Espagne", "Angleterre"
+            m4_home, m4_away = "Croatie", "Tchéquie"
+            m5_home, m5_away = "Albanie", "Finlande"
 
-        # Génération dynamique d'options basées sur les équipes du jour
+        # Construction du Ticket Safe
         safe_msg = (
             "<b>🔥 VIP PRONOS 225</b>\n\n"
             "<b>🛡️ TICKET SAFE</b>\n"
@@ -76,6 +86,7 @@ if __name__ == "__main__":
             "⚠️ Jouez responsablement."
         )
 
+        # Construction du Ticket Fun
         fun_msg = (
             "<b>🔥 VIP PRONOS 225</b>\n\n"
             "<b>🚀 TICKET FUN</b>\n"
@@ -93,4 +104,4 @@ if __name__ == "__main__":
         # Envoi des messages sur le canal
         send_telegram_message(safe_msg)
         send_telegram_message(fun_msg)
-        print("Tickets dynamiques avec options adaptées envoyés avec succès !")
+        print("Tickets dynamiques envoyés avec succès !")
