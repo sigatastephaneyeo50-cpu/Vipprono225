@@ -20,7 +20,7 @@ def send_telegram_message(text):
     return response.json()
 
 def fetch_today_matches():
-    """Interroge l'API Football pour récupérer les matchs du jour en cours"""
+    """Interroge l'API Football pour récupérer les matchs du jour en cours (notamment la Ligue des Nations)"""
     url = "https://api.football-data.org/v4/matches"
     headers = {"X-Auth-Token": FOOTBALL_API_KEY} if FOOTBALL_API_KEY else {}
     
@@ -35,7 +35,7 @@ def fetch_today_matches():
     return []
 
 def run_morning_predictions():
-    """Génère et envoie les pronostics du matin en récupérant les matchs du jour"""
+    """Génère et envoie les pronostics du matin avec les matchs du jour (Ligue des Nations)"""
     matches = fetch_today_matches()
     match_list = []
     
@@ -45,17 +45,18 @@ def run_morning_predictions():
         if home and away:
             match_list.append((home, away))
             
-    # Utilisation des vrais matchs du jour s'ils sont disponibles, sinon affiches de repli
+    # Si l'API renvoie des matchs du jour, on les prend. Sinon, affiches phares Ligue des Nations par défaut.
     if len(match_list) >= 4:
         m1_home, m1_away = match_list[0]
         m2_home, m2_away = match_list[1]
         m3_home, m3_away = match_list[2]
         m4_home, m4_away = match_list[3]
     else:
-        m1_home, m1_away = "Real Madrid", "Villarreal"
-        m2_home, m2_away = "Manchester City", "Arsenal"
-        m3_home, m3_away = "Bayern Munich", "Dortmund"
-        m4_home, m4_away = "AC Milan", "Inter Milan"
+        # Affiches types de la Ligue des Nations
+        m1_home, m1_away = "France", "Italie"
+        m2_home, m2_away = "Espagne", "Allemagne"
+        m3_home, m3_away = "Portugal", "Croatie"
+        m4_home, m4_away = "Pays-Bas", "Belgique"
 
     # Ticket Safe (Cote cible : entre 2.00 et 3.00)
     safe_msg = (
@@ -63,10 +64,10 @@ def run_morning_predictions():
         "<b>🛡️ TICKET SAFE (COTE : ~2.45)</b>\n\n"
         f"📌 <b>{m1_home} vs {m1_away}</b>\n"
         "• Option : Handicap (+1) pour l'équipe visiteuse\n"
-        "💡 <i>Analyse : Sécurité maximale, l'outsider encaisse rarement de lourdes défaites.</i>\n\n"
+        "💡 <i>Analyse : Contexte de Ligue des Nations serré, l'outsider solide en déplacement.</i>\n\n"
         f"📌 <b>{m2_home} vs {m2_away}</b>\n"
         "• Option : Plus de 1,5 buts dans le match\n"
-        "💡 <i>Analyse : Gros potentiel offensif relevé par nos analyses statistiques.</i>\n\n"
+        "💡 <i>Analyse : Des attaques de feu de part et d'autre dans cette compétition.</i>\n\n"
         "<b>📌 BOOKMAKER : Paripesa</b>\n"
         "<b>🎁 CODE PROMO : POSSIBLE06</b>\n"
         "🔗 https://paripesa.bet/possible06\n\n"
@@ -79,10 +80,10 @@ def run_morning_predictions():
         "<b>🚀 TICKET FUN (COTE : ~8.50)</b>\n\n"
         f"📌 <b>{m3_home} vs {m3_away}</b>\n"
         "• Option : Victoire sèche & Plus de 2,5 buts\n"
-        "💡 <i>Analyse : Pari audacieux pour aller chercher une belle value sur cette affiche.</i>\n\n"
+        "💡 <i>Analyse : Choc au sommet, gros engagement attendu pour aller chercher la value.</i>\n\n"
         f"📌 <b>{m4_home} vs {m4_away}</b>\n"
         "• Option : Handicap (-1.5) pour le favori\n"
-        "💡 <i>Analyse : Domination attendue, l'équipe doit s'imposer par au moins 2 buts d'écart.</i>\n\n"
+        "💡 <i>Analyse : Supériorité tactique affichée, le favori doit s'imposer avec la manière.</i>\n\n"
         "<b>📌 BOOKMAKER : Paripesa</b>\n"
         "<b>🎁 CODE PROMO : POSSIBLE06</b>\n"
         "🔗 https://paripesa.bet/possible06\n\n"
@@ -91,12 +92,12 @@ def run_morning_predictions():
 
     send_telegram_message(safe_msg)
     send_telegram_message(fun_msg)
-    print("Tickets du jour avec matchs dynamiques envoyés avec succès !")
+    print("Tickets Ligue des Nations envoyés avec succès !")
 
 def run_evening_results():
     """Vérifie les scores de la journée et envoie le bilan du soir"""
     matches = fetch_today_matches()
-    results_summary = "<b>📊 BILAN DES RÉSULTATS DU JOUR</b>\n\n"
+    results_summary = "<b>📊 BILAN DES RÉSULTATS - LIGUE DES NATIONS</b>\n\n"
     
     count = 0
     for m in matches[:4]:
@@ -117,9 +118,10 @@ def run_evening_results():
             count += 1
 
     if count == 0:
-        results_summary += "Aucun match enregistré pour le bilan de ce soir."
+        results_summary += "⚽ <b>Bilan global de la soirée :</b> Superbes affiches suivies sur la scène européenne avec @vipprono_225 !\n"
+        results_summary += "🎯 Rendez-vous demain pour de nouvelles opportunités."
     else:
-        results_summary += "\n🔥 <i>Merci d'avoir suivi nos pronos sur VIP PRONOS 225. Demain, on recommence !</i>"
+        results_summary += "\n🔥 <i>Merci d'avoir suivi nos pronos sur VIP PRONOS 225. Demain, on remet ça !</i>"
 
     send_telegram_message(results_summary)
     print("Bilan du soir envoyé avec succès !")
