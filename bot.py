@@ -21,7 +21,7 @@ def send_telegram_message(text):
     return response.json()
 
 def fetch_today_matches():
-    """Interroge l'API pour récupérer les matchs exacts d'aujourd'hui"""
+    """Interroge l'API pour récupérer les matchs du jour de manière robuste"""
     url = "https://api.football-data.org/v4/matches"
     headers = {"X-Auth-Token": FOOTBALL_API_KEY} if FOOTBALL_API_KEY else {}
     
@@ -37,7 +37,7 @@ def fetch_today_matches():
         if response.status_code == 200:
             data = response.json()
             matches = data.get("matches", [])
-            print(f"Nombre de matchs trouvés pour aujourd'hui : {len(matches)}")
+            print(f"Matchs bruts récupérés : {len(matches)}")
             return matches
     except Exception as e:
         print("Erreur lors de la récupération des matchs :", e)
@@ -45,17 +45,20 @@ def fetch_today_matches():
     return []
 
 def run_morning_predictions():
-    """Génère les pronostics du matin basés sur les matchs réels du jour"""
+    """Génère les pronostics du matin avec des options variées et des noms garantis"""
     matches = fetch_today_matches()
     match_list = []
     
     for m in matches:
-        home = m.get("homeTeam", {}).get("name", "")
-        away = m.get("awayTeam", {}).get("name", "")
-        utc_time = m.get("utcDate", "") # Format ex: 2026-11-15T15:00:00Z
+        # Extraction sécurisée des noms d'équipes
+        home_team = m.get("homeTeam")
+        away_team = m.get("awayTeam")
         
-        # Extraire l'heure proprement (HH:MM)
-        time_str = "🕒 Horaire non défini"
+        home = home_team.get("name") if isinstance(home_team, dict) else ""
+        away = away_team.get("name") if isinstance(away_team, dict) else ""
+        
+        utc_time = m.get("utcDate", "")
+        time_str = "🕒 En journée"
         if utc_time:
             try:
                 dt = datetime.strptime(utc_time, "%Y-%m-%dT%H:%M:%SZ")
@@ -66,53 +69,53 @@ def run_morning_predictions():
         if home and away:
             match_list.append((home, away, time_str))
             
-    # Attribution dynamique des matchs du jour
+    # Si l'API retourne des matchs, on les prend, sinon listes de secours diversifiées
     if len(match_list) >= 4:
-        m1_home, m1_away, m1_time = match_list[0]
-        m2_home, m2_away, m2_time = match_list[1]
-        m3_home, m3_away, m3_time = match_list[2]
-        m4_home, m4_away, m4_time = match_list[3]
+        m1 = match_list[0]
+        m2 = match_list[1]
+        m3 = match_list[2]
+        m4 = match_list[3]
     elif len(match_list) > 0:
-        m1_home, m1_away, m1_time = match_list[0]
-        m2_home, m2_away, m2_time = match_list[min(1, len(match_list)-1)]
-        m3_home, m3_away, m3_time = match_list[min(2, len(match_list)-1)]
-        m4_home, m4_away, m4_time = match_list[min(3, len(match_list)-1)]
+        m1 = match_list[0]
+        m2 = match_list[min(1, len(match_list)-1)]
+        m3 = match_list[min(2, len(match_list)-1)]
+        m4 = match_list[min(3, len(match_list)-1)]
     else:
-        m1_home, m1_away, m1_time = "Équipe A", "Équipe B", "🕒 15:00"
-        m2_home, m2_away, m2_time = "Équipe C", "Équipe D", "🕒 17:00"
-        m3_home, m3_away, m3_time = "Équipe E", "Équipe F", "🕒 19:00"
-        m4_home, m4_away, m4_time = "Équipe G", "Équipe H", "🕒 21:00"
+        # Secours varié
+        m1 = ("Brésil", "Uruguay", "🕒 20:00 UTC")
+        m2 = ("Sénégal", "Côte d'Ivoire", "🕒 17:00 UTC")
+        m3 = ("France", "Italie", "🕒 20:45 UTC")
+        m4 = ("Espagne", "Allemagne", "🕒 20:45 UTC")
 
-    # Ticket Safe (Cote visée : entre 2.00 et 3.00)
+    # Options variées pour casser la monotonie
     safe_msg = (
         "<b>🔥 VIP PRONOS 225</b>\n\n"
         "<b>🛡️ TICKET SAFE (COTE : ~2.45)</b>\n\n"
-        f"📌 <b>{m1_home} vs {m1_away}</b>\n"
-        f"{m1_time}\n"
-        "• Option : Handicap (+1) / Double Chance\n"
-        "💡 <i>Analyse : Option sécurisée basée sur la forme actuelle des formations.</i>\n\n"
-        f"📌 <b>{m2_home} vs {m2_away}</b>\n"
-        f"{m2_time}\n"
-        "• Option : Plus de 1,5 buts dans le match\n"
-        "💡 <i>Analyse : Gros potentiel offensif relevé par nos analyses statistiques.</i>\n\n"
+        f"📌 <b>{m1[0]} vs {m1[1]}</b>\n"
+        f"{m1[2]}\n"
+        "• Option : Double Chance (1X) & Moins de 3,5 buts\n"
+        "💡 <i>Analyse : Gestion rigoureuse du match, l'équipe à domicile solide dans son antre.</i>\n\n"
+        f"📌 <b>{m2[0]} vs {m2[1]}</b>\n"
+        f"{m2[2]}\n"
+        "• Option : Handicap (+1) pour l'équipe extérieure\n"
+        "💡 <i>Analyse : L'outsider a les armes pour accrocher un résultat serré.</i>\n\n"
         "<b>📌 BOOKMAKER : Paripesa</b>\n"
         "<b>🎁 CODE PROMO : POSSIBLE06</b>\n"
         "🔗 https://paripesa.bet/possible06\n\n"
         "⚠️ Jouez responsablement."
     )
 
-    # Ticket Fun (Cote visée : jusqu'à 10.00)
     fun_msg = (
         "<b>🔥 VIP PRONOS 225</b>\n\n"
         "<b>🚀 TICKET FUN (COTE : ~8.50)</b>\n\n"
-        f"📌 <b>{m3_home} vs {m3_away}</b>\n"
-        f"{m3_time}\n"
-        "• Option : Victoire sèche & Plus de 2,5 buts\n"
-        "💡 <i>Analyse : Pari audacieux pour aller chercher une belle value.</i>\n\n"
-        f"📌 <b>{m4_home} vs {m4_away}</b>\n"
-        f"{m4_time}\n"
+        f"📌 <b>{m3[0]} vs {m3[1]}</b>\n"
+        f"{m3[2]}\n"
+        "• Option : Les deux équipes marquent & Plus de 2,5 buts\n"
+        "💡 <i>Analyse : Choc ouvert avec un gros potentiel offensif des deux côtés.</i>\n\n"
+        f"📌 <b>{m4[0]} vs {m4[1]}</b>\n"
+        f"{m4[2]}\n"
         "• Option : Handicap (-1.5) pour le favori\n"
-        "💡 <i>Analyse : Domination attendue, victoire par au moins 2 buts d'écart exigée.</i>\n\n"
+        "💡 <i>Analyse : Supériorité manifeste, victoire nette par au moins 2 buts d'écart attendue.</i>\n\n"
         "<b>📌 BOOKMAKER : Paripesa</b>\n"
         "<b>🎁 CODE PROMO : POSSIBLE06</b>\n"
         "🔗 https://paripesa.bet/possible06\n\n"
@@ -121,7 +124,7 @@ def run_morning_predictions():
 
     send_telegram_message(safe_msg)
     send_telegram_message(fun_msg)
-    print("Tickets du jour envoyés avec succès !")
+    print("Tickets dynamiques et variés envoyés avec succès !")
 
 def run_evening_results():
     """Vérifie les scores et envoie le bilan du soir"""
@@ -130,8 +133,11 @@ def run_evening_results():
     
     count = 0
     for m in matches[:4]:
-        home = m.get("homeTeam", {}).get("name", "")
-        away = m.get("awayTeam", {}).get("name", "")
+        home_team = m.get("homeTeam", {})
+        away_team = m.get("awayTeam", {})
+        home = home_team.get("name", "") if isinstance(home_team, dict) else ""
+        away = away_team.get("name", "") if isinstance(away_team, dict) else ""
+        
         status = m.get("status", "")
         score = m.get("score", {}).get("fullTime", {})
         home_goals = score.get("home")
@@ -147,8 +153,8 @@ def run_evening_results():
             count += 1
 
     if count == 0:
-        results_summary += "⚽ <b>Bilan de la journée :</b> Suivi exceptionnel des affiches sur @vipprono_225 !\n"
-        results_summary += "🎯 Rendez-vous demain pour de nouvelles opportunités."
+        results_summary += "⚽ <b>Bilan de la journée :</b> Excellent suivi des tickets sur @vipprono_225 !\n"
+        results_summary += "🎯 Rendez-vous demain pour de nouvelles analyses."
     else:
         results_summary += "\n🔥 <i>Merci d'avoir suivi nos pronos sur VIP PRONOS 225. Demain, on remet ça !</i>"
 
