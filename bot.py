@@ -1,9 +1,8 @@
 import os
 import sys
 import requests
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
-# Récupération des secrets configurés sur GitHub
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 CHANNEL_ID = os.environ.get("TELEGRAM_CHANNEL_ID")
 FOOTBALL_API_KEY = os.environ.get("FOOTBALL_API_KEY")
@@ -21,62 +20,49 @@ def send_telegram_message(text):
     return response.json()
 
 def fetch_today_matches():
-    """Interroge l'API Football en forçant strictement la date du jour actuel"""
+    """Interroge l'API pour récupérer strictement les matchs du jour civil en cours"""
     url = "https://api.football-data.org/v4/matches"
     headers = {"X-Auth-Token": FOOTBALL_API_KEY} if FOOTBALL_API_KEY else {}
     
-    # Utilisation d'une date UTC précise pour aujourd'hui
+    # Date du jour exacte en UTC
     today_str = datetime.now(timezone.utc).strftime('%Y-%m-%d')
-    
-    # On élargit légèrement de J à J+1 pour être sûr de choper les matchs du soir qui basculent en UTC
-    tomorrow_str = (datetime.now(timezone.utc) + timedelta(days=1)).strftime('%Y-%m-%d')
-    
     params = {
         "dateFrom": today_str,
         "dateTo": today_str
     }
     
-    print(f"Recherche stricte des matchs pour la date du : {today_str}")
-    
     try:
         response = requests.get(url, headers=headers, params=params)
-        print(f"Statut API : {response.status_code}")
         if response.status_code == 200:
             data = response.json()
             matches = data.get("matches", [])
-            print(f"Nombre de matchs trouvés pour aujourd'hui : {len(matches)}")
             
-            # Si on trouve des matchs pour aujourd'hui, on les prend
-            if matches:
-                return matches
-                
-        # Plan de secours : si la journée pile est vide (ex: décalage horaire), on cherche sur les 24h glissantes
-        print("Élargissement à la fenêtre glissante (aujourd'hui -> demain)...")
-        params_ext = {
-            "dateFrom": today_str,
-            "dateTo": tomorrow_str
-        }
-        response_ext = requests.get(url, headers=headers, params=params_ext)
-        if response_ext.status_code == 200:
-            matches_ext = response_ext.json().get("matches", [])
-            print(f"Matchs trouvés sur la fenêtre élargie : {len(matches_ext)}")
-            return matches_ext
-            
+            # Filtrage rigoureux pour ne garder que ce qui se joue aujourd'hui
+            today_matches = []
+            for m in matches:
+                utc_date = m.get("utcDate", "")
+                if today_str in utc_date:
+                    today_matches.append(m)
+                    
+            print(f"Matchs officiels trouvés pour aujourd'hui ({today_str}) : {len(today_matches)}")
+            return today_matches
     except Exception as e:
-        print("Erreur lors de la récupération des matchs :", e)
+        print("Erreur lors de la récupération des matchs du jour :", e)
     
     return []
 
 def run_morning_predictions():
-    """Génère et envoie les pronostics du matin sans cotes"""
+    """Génère et envoie les pronostics adaptés au jour exact"""
     matches = fetch_today_matches()
     match_list = []
+    
     for m in matches:
         home = m.get("homeTeam", {}).get("name", "")
         away = m.get("awayTeam", {}).get("name", "")
         if home and away:
             match_list.append((home, away))
             
+    # Si l'API a de vrais matchs aujourd'hui, on les prend dynamiquement
     if len(match_list) >= 4:
         m1_home, m1_away = match_list[0]
         m2_home, m2_away = match_list[1]
@@ -98,14 +84,17 @@ def run_morning_predictions():
         m3_home, m3_away = match_list[0]
         m4_home, m4_away = match_list[0]
     else:
-        m1_home, m1_away = "France", "Turquie"
-        m2_home, m2_away = "Belgique", "Italie"
-        m3_home, m3_away = "Espagne", "Angleterre"
-        m4_home, m4_away = "Croatie", "Tchéquie"
+        # Matchs de secours intelligents si aucun match n'est programmé aujourd'hui sur l'API
+        print("Aucun match en direct aujourd'hui, application des affiches de secours.")
+        m1_home, m1_away = "Brésil", "Argentine"
+        m2_home, m2_away = "France", "Allemagne"
+        m3_home, m3_away = "Espagne", "Italie"
+        m4_home, m4_away = "Angleterre", "Portugal"
 
+    # Ticket Safe (Sans cotes)
     safe_msg = (
         "<b>🔥 VIP PRONOS 225</b>\n\n"
-        "<b>🛡️ TICKET SAFE</b>\n\n"
+        "<b>🛡️ TICKET SAFE DU JOUR</b>\n\n"
         f"📌 <b>{m1_home} vs {m1_away}</b>\n"
         "• Option : Handicap (+1) pour l'équipe visiteuse\n"
         "💡 <i>Analyse : Sécurité maximale, l'outsider encaisse rarement de lourdes défaites à l'extérieur.</i>\n\n"
@@ -118,9 +107,10 @@ def run_morning_predictions():
         "⚠️ Jouez responsablement."
     )
 
+    # Ticket Fun (Sans cotes)
     fun_msg = (
         "<b>🔥 VIP PRONOS 225</b>\n\n"
-        "<b>🚀 TICKET FUN</b>\n\n"
+        "<b>🚀 TICKET FUN DU JOUR</b>\n\n"
         f"📌 <b>{m1_home} vs {m1_away}</b>\n"
         f"• Option : Victoire {m1_away}\n"
         "💡 <i>Analyse : Coup à tenter, belle opportunité sur l'outsider en déplacement.</i>\n\n"
@@ -141,7 +131,7 @@ def run_morning_predictions():
     print("Tickets du jour envoyés avec succès !")
 
 def run_evening_results():
-    """Vérifie les scores de la journée et envoie le bilan du soir"""
+    """Vérifie les scores des matchs du jour pour le bilan du soir"""
     matches = fetch_today_matches()
     results_summary = "<b>📊 BILAN DES RÉSULTATS DU JOUR</b>\n\n"
     
@@ -164,7 +154,7 @@ def run_evening_results():
             count += 1
 
     if count == 0:
-        results_summary += "Aucun match enregistré pour le bilan de ce soir."
+        results_summary += "Aucun match officiel enregistré dans l'API pour le bilan de ce soir."
     else:
         results_summary += "\n🔥 <i>Merci d'avoir suivi nos pronos sur VIP PRONOS 225. Demain, on recommence !</i>"
 
