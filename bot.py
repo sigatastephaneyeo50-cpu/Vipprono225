@@ -1,7 +1,7 @@
 import os
 import sys
 import requests
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 # Récupération des secrets configurés sur GitHub
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -21,32 +21,54 @@ def send_telegram_message(text):
     return response.json()
 
 def fetch_today_matches():
-    """Interroge l'API Football pour récupérer précisément les matchs d'aujourd'hui"""
+    """Interroge l'API Football en forçant strictement la date du jour actuel"""
     url = "https://api.football-data.org/v4/matches"
     headers = {"X-Auth-Token": FOOTBALL_API_KEY} if FOOTBALL_API_KEY else {}
     
-    # On cible explicitement la date du jour (UTC) pour que l'API renvoie les matchs du jour
-    today_str = datetime.utcnow().strftime('%Y-%m-%d')
+    # Utilisation d'une date UTC précise pour aujourd'hui
+    today_str = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+    
+    # On élargit légèrement de J à J+1 pour être sûr de choper les matchs du soir qui basculent en UTC
+    tomorrow_str = (datetime.now(timezone.utc) + timedelta(days=1)).strftime('%Y-%m-%d')
+    
     params = {
         "dateFrom": today_str,
         "dateTo": today_str
     }
     
+    print(f"Recherche stricte des matchs pour la date du : {today_str}")
+    
     try:
         response = requests.get(url, headers=headers, params=params)
-        print(f"Statut API pour {today_str} : {response.status_code}")
+        print(f"Statut API : {response.status_code}")
         if response.status_code == 200:
             data = response.json()
             matches = data.get("matches", [])
-            print(f"Nombre de matchs trouvés : {len(matches)}")
-            return matches
+            print(f"Nombre de matchs trouvés pour aujourd'hui : {len(matches)}")
+            
+            # Si on trouve des matchs pour aujourd'hui, on les prend
+            if matches:
+                return matches
+                
+        # Plan de secours : si la journée pile est vide (ex: décalage horaire), on cherche sur les 24h glissantes
+        print("Élargissement à la fenêtre glissante (aujourd'hui -> demain)...")
+        params_ext = {
+            "dateFrom": today_str,
+            "dateTo": tomorrow_str
+        }
+        response_ext = requests.get(url, headers=headers, params=params_ext)
+        if response_ext.status_code == 200:
+            matches_ext = response_ext.json().get("matches", [])
+            print(f"Matchs trouvés sur la fenêtre élargie : {len(matches_ext)}")
+            return matches_ext
+            
     except Exception as e:
         print("Erreur lors de la récupération des matchs :", e)
     
     return []
 
 def run_morning_predictions():
-    """Génère et envoie les pronostics du matin sans afficher de cotes chiffrées"""
+    """Génère et envoie les pronostics du matin sans cotes"""
     matches = fetch_today_matches()
     match_list = []
     for m in matches:
@@ -81,7 +103,6 @@ def run_morning_predictions():
         m3_home, m3_away = "Espagne", "Angleterre"
         m4_home, m4_away = "Croatie", "Tchéquie"
 
-    # Ticket Safe (Sans mention de cote)
     safe_msg = (
         "<b>🔥 VIP PRONOS 225</b>\n\n"
         "<b>🛡️ TICKET SAFE</b>\n\n"
@@ -97,7 +118,6 @@ def run_morning_predictions():
         "⚠️ Jouez responsablement."
     )
 
-    # Ticket Fun (Sans mention de cote)
     fun_msg = (
         "<b>🔥 VIP PRONOS 225</b>\n\n"
         "<b>🚀 TICKET FUN</b>\n\n"
@@ -118,7 +138,7 @@ def run_morning_predictions():
 
     send_telegram_message(safe_msg)
     send_telegram_message(fun_msg)
-    print("Tickets Safe et Fun (sans cotes) envoyés avec succès !")
+    print("Tickets du jour envoyés avec succès !")
 
 def run_evening_results():
     """Vérifie les scores de la journée et envoie le bilan du soir"""
