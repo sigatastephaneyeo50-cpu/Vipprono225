@@ -1,0 +1,69 @@
+{
+  "date": "2026-11-17",
+  "tickets": [
+    {
+      "name": "safe",
+      "title": "🛡️ TICKET SAFE DU JOUR",
+      "total": 2.016,
+      "legs": [
+        {
+          "fixture_id": 1528992,
+          "home": "Wales",
+          "away": "Portugal",
+          "competition": "UEFA Nations League",
+          "kickoff": "19:45",
+          "market": "2",
+          "label": "Victoire Portugal",
+          "odd": 1.4
+        },
+        {
+          "fixture_id": 1528993,
+          "home": "Denmark",
+          "away": "Norway",
+          "competition": "UEFA Nations League",
+          "kickoff": "19:45",
+          "market": "1X",
+          "label": "Denmark ou match nul",
+          "odd": 1.44
+        }
+      ]
+    },
+    {
+      "name": "fun",
+      "title": "🚀 TICKET FUN DU JOUR",
+      "total": 7.749,
+      "legs": [
+        {
+          "fixture_id": 1528994,
+          "home": "Ukraine",
+          "away": "Georgia",
+          "competition": "UEFA Nations League",
+          "kickoff": "19:45",
+          "market": "1",
+          "label": "Victoire Ukraine",
+          "odd": 2.05
+        },
+        {
+          "fixture_id": 1528995,
+          "home": "Hungary",
+          "away": "Northern Ireland",
+          "competition": "UEFA Nations League",
+          "kickoff": "19:45",
+          "market": "BTTS",
+          "label": "Les deux équipes marquent",
+          "odd": 2.1
+        },
+        {
+          "fixture_id": 1528996,
+          "home": "Israel",
+          "away": "Austria",
+          "competition": "UEFA Nations League",
+          "kickoff": "19:45",
+          "market": "2",
+          "label": "Victoire Austria",
+          "odd": 1.8
+        }
+      ]
+    }
+  ]
+}
