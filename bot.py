@@ -7,11 +7,41 @@ import requests
 
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 CHANNEL_ID = os.environ.get("TELEGRAM_CHANNEL_ID")
-FOOTBALL_API_KEY = os.environ.get("FOOTBALL_API_KEY")
+# Clé API-Football (api-sports.io)
+API_KEY = os.environ.get("API_FOOTBALL_KEY") or os.environ.get("FOOTBALL_API_KEY")
 
-API_URL = "https://api.football-data.org/v4/matches"
+API_URL = "https://v3.football.api-sports.io/fixtures"
 TIMEOUT = 15
-EXCLUDED_STATUS = {"POSTPONED", "CANCELLED", "SUSPENDED"}
+
+# Championnats suivis, par ordre de priorité (ids API-Football).
+# Modifiable sans toucher au code : LEAGUES="2,39,140" python bot.py
+DEFAULT_LEAGUES = [
+    2,    # Ligue des champions
+    39,   # Premier League
+    140,  # Liga
+    135,  # Serie A
+    78,   # Bundesliga
+    61,   # Ligue 1
+    94,   # Primeira Liga
+    88,   # Eredivisie
+    1,    # Coupe du monde
+    4,    # Championnat d'Europe
+    6,    # Coupe d'Afrique des nations
+    5,    # Ligue des nations UEFA
+    29,   # Qualifications Coupe du monde - Afrique
+    32,   # Qualifications Coupe du monde - Europe
+    36,   # Qualifications CAN
+    960,  # Qualifications Euro
+    10,   # Matchs amicaux internationaux
+]
+_env_leagues = os.environ.get("LEAGUES", "")
+LEAGUES = (
+    [int(x) for x in _env_leagues.split(",") if x.strip().isdigit()]
+    if _env_leagues else DEFAULT_LEAGUES
+)
+
+NOT_PLAYED = {"PST", "CANC", "SUSP", "INT", "ABD", "AWD", "WO"}
+FINISHED = {"FT", "AET", "PEN"}
 
 FOOTER = (
     "<b>📌 BOOKMAKER : Paripesa</b>\n"
@@ -23,7 +53,7 @@ FOOTER = (
 )
 
 # Chaque sélection : (ticket, libellé, test).
-# Le test reçoit (buts domicile, buts extérieur) et renvoie
+# Le test reçoit (buts domicile, buts extérieur) sur 90 minutes et renvoie
 # True (gagné), False (perdu) ou None (remboursé).
 PICKS = [
     ("safe", "Handicap (+1) {away}",
@@ -56,43 +86,68 @@ def send_telegram_message(text):
 
 
 def fetch_today_matches():
-    """Matchs du jour (UTC), triés par id pour un ordre identique matin/soir."""
+    """Matchs du jour (UTC) dans les compétitions suivies, classés par
+    priorité de compétition puis par heure de coup d'envoi.
+    Un seul appel API par exécution."""
+    if not API_KEY:
+        print("Erreur : API_FOOTBALL_KEY n'est pas configurée.")
+        return []
+
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    headers = {"X-Auth-Token": FOOTBALL_API_KEY} if FOOTBALL_API_KEY else {}
-    params = {"dateFrom": today_str, "dateTo": today_str}
+    headers = {"x-apisports-key": API_KEY}
+    params = {"date": today_str, "timezone": "UTC"}
 
     try:
         response = requests.get(API_URL, headers=headers, params=params, timeout=TIMEOUT)
         response.raise_for_status()
-        matches = response.json().get("matches", [])
+        data = response.json()
     except (requests.RequestException, ValueError) as e:
         print("Erreur lors de la récupération des matchs :", e)
         return []
 
-    today_matches = [
-        m for m in matches
-        if m.get("utcDate", "").startswith(today_str)
-        and m.get("status") not in EXCLUDED_STATUS
-        and m.get("homeTeam", {}).get("name")
-        and m.get("awayTeam", {}).get("name")
-    ]
-    today_matches.sort(key=lambda m: m.get("id", 0))
-    print(f"Matchs trouvés pour {today_str} : {len(today_matches)}")
-    return today_matches
+    # L'API peut répondre 200 avec une erreur (quota, plan, clé invalide...)
+    if data.get("errors"):
+        print("Erreur API-Football :", data["errors"])
+        return []
+
+    matches = []
+    for item in data.get("response", []):
+        league_id = item.get("league", {}).get("id")
+        status = item.get("fixture", {}).get("status", {}).get("short", "")
+        home = item.get("teams", {}).get("home", {}).get("name")
+        away = item.get("teams", {}).get("away", {}).get("name")
+        if league_id not in LEAGUES or status in NOT_PLAYED or not home or not away:
+            continue
+        full = item.get("score", {}).get("fulltime", {})
+        matches.append({
+            "id": item["fixture"]["id"],
+            "utc": item["fixture"].get("date", ""),
+            "status": status,
+            "home": home,
+            "away": away,
+            "league_id": league_id,
+            "competition": item["league"].get("name", ""),
+            "goals_home": full.get("home"),
+            "goals_away": full.get("away"),
+        })
+
+    matches.sort(key=lambda m: (LEAGUES.index(m["league_id"]), m["utc"], m["id"]))
+
+    print(f"Matchs trouvés pour {today_str} : {len(matches)}")
+    for m in matches:
+        print(" -", m["competition"], ":", m["home"], "vs", m["away"])
+    return matches
 
 
 def assign_picks(matches):
     """Un match distinct par sélection. Même résultat le matin et le soir."""
     assigned = []
-    for match, (ticket, label, test) in zip(matches, PICKS):
-        home = match["homeTeam"]["name"]
-        away = match["awayTeam"]["name"]
+    for m, (ticket, label, test) in zip(matches, PICKS):
         assigned.append({
+            **m,
             "ticket": ticket,
-            "match": match,
-            "home": home,
-            "away": away,
-            "label": label.format(home=home, away=away),
+            "kickoff": m["utc"][11:16],
+            "label": label.format(home=m["home"], away=m["away"]),
             "test": test,
         })
     return assigned
@@ -102,6 +157,7 @@ def format_ticket(title, legs):
     msg = f"<b>🔥 VIP PRONOS 225</b>\n\n<b>{title}</b>\n\n"
     for leg in legs:
         msg += (
+            f"🏆 <i>{esc(leg['competition'])}</i> • ⏰ {esc(leg['kickoff'])} GMT\n"
             f"📌 <b>{esc(leg['home'])} vs {esc(leg['away'])}</b>\n"
             f"• Option : {esc(leg['label'])}\n\n"
         )
@@ -111,7 +167,7 @@ def format_ticket(title, legs):
 def run_morning_predictions():
     matches = fetch_today_matches()
     if not matches:
-        print("Aucun match aujourd'hui : rien n'est envoyé.")
+        print("Aucun match dans les compétitions suivies aujourd'hui : rien n'est envoyé.")
         return
 
     legs = assign_picks(matches)
@@ -126,8 +182,7 @@ def run_morning_predictions():
 
 
 def run_evening_results():
-    matches = fetch_today_matches()
-    legs = assign_picks(matches)
+    legs = assign_picks(fetch_today_matches())
     if not legs:
         print("Aucun pronostic à vérifier aujourd'hui : rien n'est envoyé.")
         return
@@ -136,12 +191,14 @@ def run_evening_results():
     won = lost = 0
 
     for leg in legs:
-        m = leg["match"]
-        score = m.get("score", {}).get("fullTime", {})
-        h, a = score.get("home"), score.get("away")
-        line = f"⚽ <b>{esc(leg['home'])} vs {esc(leg['away'])}</b>\n• {esc(leg['label'])} : "
+        h, a = leg["goals_home"], leg["goals_away"]
+        line = (
+            f"🏆 <i>{esc(leg['competition'])}</i>\n"
+            f"⚽ <b>{esc(leg['home'])} vs {esc(leg['away'])}</b>\n"
+            f"• {esc(leg['label'])} : "
+        )
 
-        if m.get("status") == "FINISHED" and h is not None and a is not None:
+        if leg["status"] in FINISHED and h is not None and a is not None:
             result = leg["test"](h, a)
             if result is True:
                 icon, won = "✅ Gagné", won + 1
