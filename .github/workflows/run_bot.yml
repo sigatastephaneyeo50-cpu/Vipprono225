@@ -1,6 +1,9 @@
 name: Lancer le script du bot
 
 on:
+  schedule:
+    - cron: "0 9 * * *"    # 09:00 GMT : pronostics du jour
+    - cron: "0 23 * * *"   # 23:00 GMT : bilan du soir
   workflow_dispatch:
     inputs:
       mode:
@@ -17,6 +20,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Choisir le mode
+        id: mode
+        env:
+          INPUT_MODE: ${{ inputs.mode }}
+          SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          if [ -n "$INPUT_MODE" ]; then
+            MODE="$INPUT_MODE"
+          elif [ "$SCHEDULE" = "0 23 * * *" ]; then
+            MODE="evening"
+          else
+            MODE="morning"
+          fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -30,10 +48,10 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
           API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
-        run: python bot.py ${{ inputs.mode }}
+        run: python bot.py ${{ steps.mode.outputs.mode }}
 
       - name: Sauvegarder les pronostics du jour
-        if: ${{ inputs.mode == 'morning' }}
+        if: ${{ steps.mode.outputs.mode == 'morning' }}
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
