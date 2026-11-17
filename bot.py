@@ -72,8 +72,7 @@ FOOTER = (
     "<i>Cotes indicatives : elles peuvent varier selon le bookmaker.</i>\n\n"
     "<b>📌 BOOKMAKER : Paripesa</b>\n"
     "<b>🎁 CODE PROMO : POSSIBLE06</b>\n"
-    "🔗 https://paripesa.bet/possible06\n"
-    "<i>(lien d'affiliation)</i>\n\n"
+    "🔗 https://paripesa.bet/possible06\n\n"
     "🔞 Réservé aux majeurs. Les paris comportent des risques : "
     "ne jouez que ce que vous pouvez perdre."
 )
