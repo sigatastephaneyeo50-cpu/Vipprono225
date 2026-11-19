@@ -31,6 +31,15 @@ DEFAULT_LEAGUES = [
 _env = os.environ.get("LEAGUES", "")
 LEAGUES = [int(x) for x in _env.split(",") if x.strip().isdigit()] if _env else DEFAULT_LEAGUES
 
+# "Grands matchs" : compétitions assez importantes pour proposer un ticket.
+# Par défaut tout sauf les amicaux. Pour être plus strict, retire des ids
+# (ex. 5, 29, 32, 36, 960 pour exclure Ligue des nations et qualifications).
+_env_big = os.environ.get("BIG_LEAGUES", "")
+BIG_LEAGUES = (
+    [int(x) for x in _env_big.split(",") if x.strip().isdigit()]
+    if _env_big else [l for l in DEFAULT_LEAGUES if l != 10]
+)
+
 NOT_PLAYED = {"PST", "CANC", "SUSP", "INT", "ABD", "AWD", "WO"}
 UPCOMING = {"NS", "TBD"}
 FINISHED = {"FT", "AET", "PEN"}
@@ -78,6 +87,24 @@ FOOTER = (
 )
 
 
+NO_MATCH_MSG = (
+    "<b>🔥 VIP PRONOS 225</b>\n\n"
+    "📭 Aucun match à pronostiquer aujourd'hui dans nos compétitions.\n\n"
+    "Rendez-vous demain pour les prochains tickets ! ⚽"
+)
+NO_BIG_MATCH_MSG = (
+    "<b>🔥 VIP PRONOS 225</b>\n\n"
+    "📭 Pas de grand match aujourd'hui, donc pas de ticket.\n\n"
+    "Rendez-vous demain ! ⚽"
+)
+NO_TICKET_MSG = (
+    "<b>🔥 VIP PRONOS 225</b>\n\n"
+    "📭 Pas de ticket aujourd'hui : les matchs ou les cotes disponibles "
+    "ne permettent pas de proposer une sélection.\n\n"
+    "Rendez-vous demain ! ⚽"
+)
+
+
 def esc(text):
     return html.escape(str(text))
 
@@ -122,10 +149,11 @@ def api_get(path, params):
 
 
 def fetch_today_matches():
-    """Matchs du jour dans les compétitions suivies, par priorité puis heure."""
+    """Matchs du jour dans les compétitions suivies, par priorité puis heure.
+    Renvoie None en cas d'erreur API (différent de 'aucun match' = liste vide)."""
     data = api_get("fixtures", {"date": today_utc(), "timezone": "UTC"})
-    if not data:
-        return []
+    if data is None:
+        return None
 
     matches = []
     for item in data.get("response", []):
@@ -224,8 +252,26 @@ def save_predictions(tickets):
 
 
 def run_morning_predictions():
-    matches = [m for m in fetch_today_matches() if m["status"] in UPCOMING]
-    pool = matches[:MAX_MATCHES_FOR_ODDS]
+    all_matches = fetch_today_matches()
+    if all_matches is None:
+        print("Impossible de récupérer les matchs : aucun message envoyé.")
+        return
+
+    matches = [m for m in all_matches if m["status"] in UPCOMING]
+    if not matches:
+        print("Aucun match à venir aujourd'hui : message d'information envoyé.")
+        send_telegram_message(NO_MATCH_MSG)
+        save_predictions([])
+        return
+
+    big_matches = [m for m in matches if m["league_id"] in BIG_LEAGUES]
+    if not big_matches:
+        print("Pas de grand match aujourd'hui : message d'information envoyé.")
+        send_telegram_message(NO_BIG_MATCH_MSG)
+        save_predictions([])
+        return
+
+    pool = big_matches[:MAX_MATCHES_FOR_ODDS]
     for m in pool:
         m["odds"] = fetch_odds(m["id"])
         print(f" - {m['home']} vs {m['away']} : cotes {m['odds'] or 'indisponibles'}")
@@ -243,6 +289,8 @@ def run_morning_predictions():
         saved.append({"name": key, "title": title, "total": total, "legs": legs})
         send_telegram_message(format_ticket(title, legs, total))
 
+    if not saved:
+        send_telegram_message(NO_TICKET_MSG)
     save_predictions(saved)
     print(f"{len(saved)} ticket(s) envoyé(s).")
 
@@ -258,7 +306,7 @@ def run_evening_results():
         print("Pas de pronostics enregistrés pour aujourd'hui : rien n'est envoyé.")
         return
 
-    results = {m["id"]: m for m in fetch_today_matches()}
+    results = {m["id"]: m for m in (fetch_today_matches() or [])}
     summary = "<b>📊 BILAN DES RÉSULTATS DU JOUR</b>\n\n"
     won_tickets = lost_tickets = 0
 
